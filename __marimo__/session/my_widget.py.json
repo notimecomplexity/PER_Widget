@@ -1,0 +1,185 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.24.0",
+    "script_metadata_hash": null
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "a0d474fcd745c4570e3431b5b6ef492c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "fa41ca448a8040e74ae4c4b721c8a36b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "90c07e517c6dc04083ab970a3ab3d259",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "207bd2b5381f54d09bc784cfad6c1942",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">This is the notebook's \"memory\" for incoming data.</span>\n<ul>\n<li>mo.state(...) is marimo's version of a reactive variable \u2014 it gives you a getter function (get_buffers()) and a setter function (set_buffers(...)). Any cell that calls get_buffers() automatically re-runs whenever set_buffers(...) is called elsewhere. That's what makes the chart redraw when new data shows up.</li>\n<li>The value being stored is a defaultdict(lambda: deque(maxlen=500)) \u2014 a dictionary where:<ul>\n<li>each key is a sensor id</li>\n<li>each value is a deque (a list-like structure) holding up to 500 recent (timestamp, value) pairs for that sensor</li>\n<li>defaultdict means: if you access a sensor id that doesn't exist yet, it automatically creates an empty deque for it instead of throwing a KeyError</li>\n<li>maxlen=500 means once the deque hits 500 items, adding a new one automatically drops the oldest \u2014 this keeps memory bounded and gives you a \"sliding window\" of recent history instead of an ever-growing list</li>\n</ul>\n</li>\n</ul></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "4be11e9cbd9d993338174e49d148e298",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Listener thread starting...\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "PKri",
+      "code_hash": "ff79d18943bb15114d88ee73ca4c2090",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">This is the piece that actually talks to your FastAPI server.</span>\n<ul>\n<li>httpx.Client(timeout=None) \u2014 creates an HTTP client with no timeout, since the SSE connection is meant to stay open indefinitely (a normal timeout would kill it after N seconds).</li>\n<li>client.stream(\"GET\", \".../stream\") \u2014 opens the connection to your server's /stream endpoint but doesn't wait for it to \"finish\" (it never finishes) \u2014 instead it gives you a way to read data as it arrives.</li>\n<li>sseclient.SSEClient(response.iter_lines()) \u2014 takes the raw streamed text and parses it into structured SSE event objects (splitting on data: ... lines, etc.), so you don't have to parse the wire format yourself.</li>\n<li>for event in client_sse.events(): \u2014 loops forever, once per message the server sends (every ~50ms per the README).</li>\n<li>msg = json.loads(event.data) \u2014 turns the JSON string like {\"ts\": [...], \"id\": [...], \"v\": [...]} into a real Python dict.</li>\n<li>for ts, sensor_id, val in zip(msg[\"ts\"], msg[\"id\"], msg[\"v\"]): \u2014 since each message can contain multiple samples (possibly from different sensors) packed into three parallel lists, zip walks through them together, pulling out one (timestamp, sensor_id, value) triple at a time.</li>\n<li>buffers[sensor_id].append((ts, val)) \u2014 stores that sample in the correct sensor's deque.</li>\n<li>set_buffers(buffers) \u2014 pushes the updated buffer back into marimo's state, which flags any dependent cells (like the chart) as needing to re-run.</li>\n<li>threading.Thread(target=listen, daemon=True).start() \u2014 runs all of the above in a background thread, so it doesn't freeze the rest of the notebook. daemon=True means this thread won't prevent the program from exiting if you close the notebook.</li>\n</ul>\n<span class=\"paragraph\"><strong>Why a background thread specifically:</strong> the SSE loop runs forever (for event in ... never naturally ends), so if it ran directly in a normal marimo cell, that cell would just hang forever and nothing else in the notebook could run. Putting it on its own thread lets it keep listening in the background while the rest of the notebook (UI, chart redraws) stays responsive.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "ef583e27a037701f161545e3242cc869",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='Xref-0' random-id='c589512e-14a3-41da-57eb-0bc03a946018'><marimo-dropdown data-initial-value='[&quot;pcm.moc.motor.requestedTorque&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSensor to plot&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;pcm.wheelSpeeds.frontLeft&quot;,&quot;pcm.pedals.accel&quot;,&quot;pcm.coolingLoop.temp&quot;,&quot;pcm.moc.motor.temp&quot;,&quot;pcm.moc.motor.requestedTorque&quot;,&quot;pcm.moc.motor.torqueFeedback&quot;,&quot;pcm.vnav.posLla.latitude&quot;,&quot;pcm.vnav.posLla.longitude&quot;,&quot;pcm.vnav.velocityBody.x&quot;,&quot;pcm.vnav.velocityBody.y&quot;,&quot;pcm.vnav.compensatedAccel.y&quot;,&quot;pcm.vnav.yawPitchRoll.yaw&quot;,&quot;pcm.vnav.compensatedAngularRate.z&quot;,&quot;bms.pack.voltage&quot;,&quot;bms.pack.current&quot;,&quot;bms.pack.power&quot;,&quot;bms.stack.mma.temp.avg&quot;,&quot;pdu.sensors.currPmp1&quot;,&quot;pdu.sensors.currPmp2&quot;,&quot;pdu.sensors.currFan1&quot;,&quot;pdu.sensors.currFan2&quot;,&quot;ludwig.steeringWheel.angle&quot;,&quot;ludwig.tireTemps.rearLeft[0]&quot;,&quot;ludwig.tireTemps.rearLeft[1]&quot;,&quot;ludwig.tireTemps.rearLeft[2]&quot;,&quot;ludwig.tireTemps.rearLeft[3]&quot;,&quot;ludwig.tireTemps.rearLeft[4]&quot;,&quot;ludwig.tireTemps.rearLeft[5]&quot;,&quot;ludwig.tireTemps.rearLeft[6]&quot;,&quot;ludwig.tireTemps.rearLeft[7]&quot;,&quot;ludwig.tireTemps.rearLeft[8]&quot;,&quot;ludwig.tireTemps.rearLeft[9]&quot;,&quot;ludwig.tireTemps.rearLeft[10]&quot;,&quot;ludwig.tireTemps.rearLeft[11]&quot;,&quot;ludwig.tireTemps.rearLeft[12]&quot;,&quot;ludwig.tireTemps.rearLeft[13]&quot;,&quot;ludwig.tireTemps.rearLeft[14]&quot;,&quot;ludwig.tireTemps.rearLeft[15]&quot;,&quot;ludwig.tireTemps.rearRight[0]&quot;,&quot;ludwig.tireTemps.rearRight[1]&quot;,&quot;ludwig.tireTemps.rearRight[2]&quot;,&quot;ludwig.tireTemps.rearRight[3]&quot;,&quot;ludwig.tireTemps.rearRight[4]&quot;,&quot;ludwig.tireTemps.rearRight[5]&quot;,&quot;ludwig.tireTemps.rearRight[6]&quot;,&quot;ludwig.tireTemps.rearRight[7]&quot;,&quot;ludwig.tireTemps.rearRight[8]&quot;,&quot;ludwig.tireTemps.rearRight[9]&quot;,&quot;ludwig.tireTemps.rearRight[10]&quot;,&quot;ludwig.tireTemps.rearRight[11]&quot;,&quot;ludwig.tireTemps.rearRight[12]&quot;,&quot;ludwig.tireTemps.rearRight[13]&quot;,&quot;ludwig.tireTemps.rearRight[14]&quot;,&quot;ludwig.tireTemps.rearRight[15]&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "plMC",
+      "code_hash": "75d1c4d5d576633ea5cdbd61f1ce8891",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">Creates an interactive dropdown UI element.</span>\n<ul>\n<li>options={name: sid ...} \u2014 builds a dict where the keys are the human-readable names (what the user sees and picks from) and the values are the numeric sensor ids (what your code actually uses).</li>\n<li>value=\"moc.motor.requestedTorque\" \u2014 sets which option is selected by default.</li>\n<li>The last line, sensor_dropdown by itself, tells marimo to actually display the widget in the notebook output (just creating it doesn't render it \u2014 you have to \"return\" it as the cell's displayed value).</li>\n<li>sensor_dropdown.value (used later) gives you whatever the user currently has selected \u2014 and since it's a marimo UI element, any cell that reads sensor_dropdown.value automatically reruns when the user changes the dropdown.</li>\n</ul></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "37240e32232b799e47cf930f798a3a05",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='SFPL-0' random-id='2b82a1ac-bfaa-7adc-5844-f3edc184c5c2'><marimo-refresh data-initial-value='&quot;&quot;' data-label='null' data-options='[&quot;0.1s&quot;]' data-default-interval='&quot;0.1s&quot;'></marimo-refresh></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Ehpv",
+      "code_hash": "89bb5b40e3f7611582d8ff68c19145b4",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">This is a \"clock\" element \u2014 it doesn't display anything meaningful itself, but it changes its internal value on a timer (every 0.1 seconds here). Since marimo cells rerun whenever a variable they depend on changes, any cell that references refresh will get re-triggered every 100ms \u2014 this is what drives the \"live\" redrawing, since otherwise the chart cell would only rerun when its own inputs (like the dropdown) change, not when new background data arrives.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "74ab164649fbe4f82abebcee32711063",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='BYtC-0' random-id='cc85c772-7cbe-923d-6977-a6882926596b'><marimo-plotly data-initial-value='{}' data-label='null' data-figure='{&quot;data&quot;:[{&quot;mode&quot;:&quot;lines&quot;,&quot;x&quot;:[359.29389,359.892251,360.092156,360.693085,360.893549,361.289876,361.493597,361.693187,361.892943,362.091762,362.293088,362.492448,362.692931,363.092048,363.292684,363.492149,363.890594,364.089023,364.48893,364.68824,364.989399,365.190682,365.392274,365.790045,366.190983,366.390848,366.591848,367.189241,367.388533,367.788423,367.989148,368.391198,368.591044,368.787398,368.988514,369.188716,369.388936,369.59122,369.790416,370.189025,370.390644,370.588116,370.988623,371.186783,371.389867,371.988082,372.189597,372.387921,372.587439,372.989766,373.190128,373.388889,373.785763,373.98906,374.38709,374.587119,374.989211,375.387338,375.787221,375.986051,376.187754,376.585251,376.787313,376.988303,377.188146,377.388165,378.186071,378.385989,378.584915,378.786081,379.384679,379.58472,379.78501,380.384759,380.786377,380.985481,381.186354,381.586783,381.786072,381.984491,382.585349,383.384802,383.584341,383.783513,383.984315,384.183847,384.782394,384.983575,385.483427,385.885573,386.085204,386.286021,386.485797,386.981918,387.085723,387.285799,387.882714,388.085638,388.284848,389.084888,389.482375,389.685065,390.085233,390.484863,390.682455,391.081118,391.28311,391.484832,391.881457,392.083491,392.280824,392.483891,392.683396,393.083325,393.28418,393.483819,394.083375,394.281937,394.883279,395.281324,395.480664,395.681878,395.883608,396.082625,396.282936,396.883039,397.079532,397.28204,397.480614,397.683017,397.882553,398.081417,398.681924,399.479825,399.680278,400.278825,400.48199,400.677445,401.078116,401.280966,401.48003,401.679527,401.881731,402.081473,402.681248,403.080295,403.277552,403.477912,403.677514,404.081382,404.47967,404.676843,404.879504,405.078178,405.278628,405.480143,406.379585,406.580332,407.179255,407.378352,407.579224,407.776072,407.979666,408.177311,408.576731,408.777329,409.17555,409.977081,410.176397,410.977378,411.376439,411.576184,411.978283,412.175864,412.377584,412.577751,412.778013,412.974504,413.376961,413.575198,413.775632,413.97606,414.575963,414.775682,415.17731,416.174325,416.372588,416.572963,416.97425,417.372576,417.57291,417.774071,418.176035,418.375885,419.17599,419.975962,420.175239,420.374433,420.575916,420.773604,420.976278,421.375688,421.5724,421.975435,422.174613,422.57555,422.774617,422.9734,423.172992,423.374003,423.572905,423.972949,424.17482,424.774429,425.171246,425.372386,425.574026,425.773802,426.274333,426.67207,427.274015,427.671035,427.869555,428.072574,428.67292,429.069905,429.472669,429.673322,429.870437,430.272786,430.470318,430.669721,430.871359,431.069492,431.269169,431.47182,431.668442,432.271927,432.471805,432.671176,432.869235,433.268762,433.468385,433.667913,433.869382,434.07129,434.269976,434.469825,434.67191,434.871161,435.469425,435.668311,436.869612,437.870331,438.667968,439.069941,439.270394,439.469342,439.868141,440.269719,440.468277,440.667403,440.866859,441.267661,441.467797,441.666783,441.86944,442.069819,442.269187,442.668831,443.06827,443.269329,443.865267,444.068302,444.26794,444.665389,444.868111,445.265663,445.468131,445.669621,445.868467,446.067135,446.565165,446.764053,446.964451,447.164711,447.36525,447.764808,447.964804,448.565091,448.763529,448.964105,449.565343,449.966173,450.165618,450.366721,450.762948,450.965891,451.163885,451.56278,452.963642,453.363638,453.563922,453.764762,454.965681,455.365055,455.763664,455.96228,456.36122,456.562227,456.961047,457.164179,457.76184,457.964199,458.162587,458.361595,458.563038,458.760257,459.16146,459.561655,459.760265,459.959321,460.161364,460.360858,460.761303,460.961582,461.161111,461.56127,461.760847,463.359218,463.56253,463.963001,464.161219,464.559676,464.761729,464.962833,465.162382,465.360856,465.56173,465.760321,465.960235,466.161284,466.458585,466.658848,466.861247,467.058958,467.257927,467.658749,467.859073,468.059558,468.258077,468.656842,469.456504,469.658679,469.859127,470.058394,470.258028,470.460283,470.659311,470.858639,471.259744,471.460431,471.657338,471.860428,472.457298,472.660255,472.857993,473.457515,474.059249,474.45968,474.857544,475.059486,475.457871,475.856956,476.255964,476.457385,476.656686,477.056636,477.256768,477.655748,478.057306,478.257879,479.055143,479.655317,480.055903,480.457379,480.857822,481.056784,481.254587,481.455904,481.655579,481.853825,482.056257,482.255409,482.455902,482.854094,483.054741,483.454184,484.555492,484.856319,485.85564,486.05205,486.55321,486.952868,487.352506,487.553298,487.950802,488.152932,488.352808,489.154608,489.752879,489.952321,490.351798,490.755081,491.753603,492.153344,492.353996,492.552249,492.953877,493.75199,493.951241,494.152869,494.552773,494.950662,495.349606,495.548931,495.752522,495.949546,496.151527,496.353016,496.550669,496.949693,497.148261,497.349114,497.548222,497.750138,497.949178,498.150148,498.3493,498.952309,499.351781,499.551825,499.948546,500.151673,500.549512,500.749008,500.949329,501.346886,501.546829,501.746742,501.947228,502.148654,502.348329,502.547887,502.746674,503.148461,503.348822,503.547321,503.748361,503.948224,504.146864,504.648435,504.846283,505.046715,505.146771,505.347627,505.549409,505.748451,506.149176,506.448653,506.646662,507.04976,507.247838,507.449413,507.647752,508.048735,508.247363,508.847109,509.24918,509.446733,509.646432,510.048016,510.245338,510.447081,510.648818,511.248646,511.447855,511.646475,511.848379,512.047409,512.646809,512.84411,513.046056,513.444707,513.643632,513.845267,514.045215,514.245275,514.545365,514.644728],&quot;y&quot;:[58.0,60.0,59.0,60.0,58.0,60.0,57.0,58.0,57.0,58.0,59.0,58.0,57.0,60.0,59.0,60.0,61.0,59.0,60.0,59.0,58.0,59.0,60.0,59.0,60.0,59.0,61.0,60.0,59.0,60.0,59.0,61.0,59.0,58.0,61.0,60.0,57.0,59.0,60.0,59.0,61.0,60.0,59.0,61.0,60.0,59.0,60.0,59.0,61.0,60.0,61.0,59.0,61.0,59.0,61.0,59.0,60.0,59.0,61.0,60.0,59.0,61.0,59.0,61.0,60.0,61.0,59.0,61.0,59.0,60.0,61.0,62.0,61.0,60.0,61.0,60.0,61.0,60.0,59.0,61.0,60.0,61.0,60.0,59.0,61.0,60.0,61.0,60.0,61.0,60.0,61.0,60.0,61.0,60.0,61.0,60.0,61.0,60.0,61.0,60.0,59.0,60.0,59.0,61.0,60.0,61.0,62.0,60.0,62.0,59.0,61.0,62.0,60.0,61.0,60.0,61.0,60.0,61.0,59.0,62.0,61.0,60.0,62.0,61.0,60.0,61.0,62.0,63.0,62.0,60.0,61.0,62.0,61.0,62.0,61.0,62.0,61.0,62.0,60.0,63.0,62.0,61.0,63.0,62.0,61.0,63.0,61.0,63.0,61.0,62.0,63.0,62.0,61.0,62.0,61.0,62.0,61.0,62.0,63.0,62.0,63.0,61.0,63.0,62.0,61.0,62.0,63.0,62.0,61.0,63.0,62.0,63.0,62.0,63.0,64.0,61.0,62.0,63.0,62.0,64.0,62.0,61.0,62.0,61.0,62.0,63.0,61.0,62.0,63.0,61.0,63.0,62.0,63.0,62.0,61.0,62.0,61.0,62.0,63.0,61.0,62.0,61.0,62.0,61.0,63.0,62.0,63.0,61.0,63.0,62.0,63.0,62.0,63.0,61.0,62.0,63.0,64.0,62.0,61.0,63.0,64.0,62.0,63.0,62.0,64.0,62.0,63.0,61.0,63.0,62.0,64.0,61.0,64.0,61.0,62.0,61.0,63.0,62.0,63.0,62.0,64.0,62.0,63.0,64.0,63.0,62.0,61.0,62.0,64.0,63.0,62.0,63.0,62.0,63.0,62.0,63.0,62.0,63.0,62.0,63.0,61.0,62.0,63.0,61.0,62.0,63.0,62.0,63.0,61.0,62.0,61.0,62.0,63.0,62.0,61.0,62.0,61.0,63.0,60.0,61.0,62.0,61.0,63.0,62.0,63.0,61.0,63.0,61.0,62.0,61.0,62.0,63.0,61.0,62.0,63.0,62.0,61.0,63.0,62.0,63.0,62.0,63.0,61.0,63.0,62.0,63.0,61.0,62.0,63.0,62.0,61.0,62.0,63.0,62.0,61.0,63.0,62.0,61.0,63.0,62.0,63.0,61.0,64.0,63.0,62.0,63.0,62.0,64.0,62.0,61.0,62.0,63.0,62.0,63.0,62.0,64.0,62.0,61.0,62.0,63.0,62.0,63.0,64.0,61.0,64.0,62.0,63.0,62.0,63.0,64.0,62.0,64.0,62.0,64.0,62.0,64.0,63.0,64.0,62.0,63.0,62.0,63.0,62.0,64.0,65.0,62.0,63.0,64.0,62.0,63.0,64.0,63.0,62.0,63.0,64.0,62.0,64.0,62.0,64.0,62.0,64.0,63.0,64.0,63.0,64.0,62.0,64.0,63.0,64.0,62.0,63.0,62.0,64.0,62.0,63.0,64.0,63.0,62.0,63.0,62.0,63.0,62.0,64.0,63.0,62.0,63.0,62.0,63.0,62.0,63.0,62.0,63.0,62.0,63.0,62.0,63.0,64.0,62.0,61.0,64.0,61.0,63.0,64.0,62.0,61.0,63.0,62.0,64.0,63.0,64.0,63.0,61.0,64.0,63.0,62.0,64.0,62.0,64.0,63.0,64.0,63.0,64.0,62.0,63.0,62.0,63.0,62.0,64.0,63.0,64.0,63.0,64.0,63.0,64.0,62.0,63.0,65.0,64.0,63.0,64.0,63.0,64.0,65.0,64.0,62.0,64.0,62.0,63.0,65.0,63.0,64.0,63.0,65.0,62.0,64.0,62.0,64.0,63.0,65.0,62.0,63.0,64.0,62.0,63.0,64.0,62.0,64.0,62.0,61.0,62.0,65.0,64.0,65.0,62.0,63.0,64.0,65.0,64.0,63.0,64.0],&quot;type&quot;:&quot;scatter&quot;}],&quot;layout&quot;:{&quot;template&quot;:{&quot;data&quot;:{&quot;histogram2dcontour&quot;:[{&quot;type&quot;:&quot;histogram2dcontour&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;},&quot;colorscale&quot;:[[0.0,&quot;#0d0887&quot;],[0.1111111111111111,&quot;#46039f&quot;],[0.2222222222222222,&quot;#7201a8&quot;],[0.3333333333333333,&quot;#9c179e&quot;],[0.4444444444444444,&quot;#bd3786&quot;],[0.5555555555555556,&quot;#d8576b&quot;],[0.6666666666666666,&quot;#ed7953&quot;],[0.7777777777777778,&quot;#fb9f3a&quot;],[0.8888888888888888,&quot;#fdca26&quot;],[1.0,&quot;#f0f921&quot;]]}],&quot;choropleth&quot;:[{&quot;type&quot;:&quot;choropleth&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}],&quot;histogram2d&quot;:[{&quot;type&quot;:&quot;histogram2d&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;},&quot;colorscale&quot;:[[0.0,&quot;#0d0887&quot;],[0.1111111111111111,&quot;#46039f&quot;],[0.2222222222222222,&quot;#7201a8&quot;],[0.3333333333333333,&quot;#9c179e&quot;],[0.4444444444444444,&quot;#bd3786&quot;],[0.5555555555555556,&quot;#d8576b&quot;],[0.6666666666666666,&quot;#ed7953&quot;],[0.7777777777777778,&quot;#fb9f3a&quot;],[0.8888888888888888,&quot;#fdca26&quot;],[1.0,&quot;#f0f921&quot;]]}],&quot;heatmap&quot;:[{&quot;type&quot;:&quot;heatmap&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;},&quot;colorscale&quot;:[[0.0,&quot;#0d0887&quot;],[0.1111111111111111,&quot;#46039f&quot;],[0.2222222222222222,&quot;#7201a8&quot;],[0.3333333333333333,&quot;#9c179e&quot;],[0.4444444444444444,&quot;#bd3786&quot;],[0.5555555555555556,&quot;#d8576b&quot;],[0.6666666666666666,&quot;#ed7953&quot;],[0.7777777777777778,&quot;#fb9f3a&quot;],[0.8888888888888888,&quot;#fdca26&quot;],[1.0,&quot;#f0f921&quot;]]}],&quot;contourcarpet&quot;:[{&quot;type&quot;:&quot;contourcarpet&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}],&quot;contour&quot;:[{&quot;type&quot;:&quot;contour&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;},&quot;colorscale&quot;:[[0.0,&quot;#0d0887&quot;],[0.1111111111111111,&quot;#46039f&quot;],[0.2222222222222222,&quot;#7201a8&quot;],[0.3333333333333333,&quot;#9c179e&quot;],[0.4444444444444444,&quot;#bd3786&quot;],[0.5555555555555556,&quot;#d8576b&quot;],[0.6666666666666666,&quot;#ed7953&quot;],[0.7777777777777778,&quot;#fb9f3a&quot;],[0.8888888888888888,&quot;#fdca26&quot;],[1.0,&quot;#f0f921&quot;]]}],&quot;surface&quot;:[{&quot;type&quot;:&quot;surface&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;},&quot;colorscale&quot;:[[0.0,&quot;#0d0887&quot;],[0.1111111111111111,&quot;#46039f&quot;],[0.2222222222222222,&quot;#7201a8&quot;],[0.3333333333333333,&quot;#9c179e&quot;],[0.4444444444444444,&quot;#bd3786&quot;],[0.5555555555555556,&quot;#d8576b&quot;],[0.6666666666666666,&quot;#ed7953&quot;],[0.7777777777777778,&quot;#fb9f3a&quot;],[0.8888888888888888,&quot;#fdca26&quot;],[1.0,&quot;#f0f921&quot;]]}],&quot;mesh3d&quot;:[{&quot;type&quot;:&quot;mesh3d&quot;,&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}],&quot;scatter&quot;:[{&quot;fillpattern&quot;:{&quot;fillmode&quot;:&quot;overlay&quot;,&quot;size&quot;:10,&quot;solidity&quot;:0.2},&quot;type&quot;:&quot;scatter&quot;}],&quot;parcoords&quot;:[{&quot;type&quot;:&quot;parcoords&quot;,&quot;line&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;scatterpolargl&quot;:[{&quot;type&quot;:&quot;scatterpolargl&quot;,&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;bar&quot;:[{&quot;error_x&quot;:{&quot;color&quot;:&quot;#2a3f5f&quot;},&quot;error_y&quot;:{&quot;color&quot;:&quot;#2a3f5f&quot;},&quot;marker&quot;:{&quot;line&quot;:{&quot;color&quot;:&quot;#E5ECF6&quot;,&quot;width&quot;:0.5},&quot;pattern&quot;:{&quot;fillmode&quot;:&quot;overlay&quot;,&quot;size&quot;:10,&quot;solidity&quot;:0.2}},&quot;type&quot;:&quot;bar&quot;}],&quot;scattergeo&quot;:[{&quot;type&quot;:&quot;scattergeo&quot;,&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;scatterpolar&quot;:[{&quot;type&quot;:&quot;scatterpolar&quot;,&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;histogram&quot;:[{&quot;marker&quot;:{&quot;pattern&quot;:{&quot;fillmode&quot;:&quot;overlay&quot;,&quot;size&quot;:10,&quot;solidity&quot;:0.2}},&quot;type&quot;:&quot;histogram&quot;}],&quot;scattergl&quot;:[{&quot;type&quot;:&quot;scattergl&quot;,&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;scatter3d&quot;:[{&quot;type&quot;:&quot;scatter3d&quot;,&quot;line&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}},&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;scattermap&quot;:[{&quot;type&quot;:&quot;scattermap&quot;,&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;scatterternary&quot;:[{&quot;type&quot;:&quot;scatterternary&quot;,&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;scattercarpet&quot;:[{&quot;type&quot;:&quot;scattercarpet&quot;,&quot;marker&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}}}],&quot;carpet&quot;:[{&quot;aaxis&quot;:{&quot;endlinecolor&quot;:&quot;#2a3f5f&quot;,&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;minorgridcolor&quot;:&quot;white&quot;,&quot;startlinecolor&quot;:&quot;#2a3f5f&quot;},&quot;baxis&quot;:{&quot;endlinecolor&quot;:&quot;#2a3f5f&quot;,&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;minorgridcolor&quot;:&quot;white&quot;,&quot;startlinecolor&quot;:&quot;#2a3f5f&quot;},&quot;type&quot;:&quot;carpet&quot;}],&quot;table&quot;:[{&quot;cells&quot;:{&quot;fill&quot;:{&quot;color&quot;:&quot;#EBF0F8&quot;},&quot;line&quot;:{&quot;color&quot;:&quot;white&quot;}},&quot;header&quot;:{&quot;fill&quot;:{&quot;color&quot;:&quot;#C8D4E3&quot;},&quot;line&quot;:{&quot;color&quot;:&quot;white&quot;}},&quot;type&quot;:&quot;table&quot;}],&quot;barpolar&quot;:[{&quot;marker&quot;:{&quot;line&quot;:{&quot;color&quot;:&quot;#E5ECF6&quot;,&quot;width&quot;:0.5},&quot;pattern&quot;:{&quot;fillmode&quot;:&quot;overlay&quot;,&quot;size&quot;:10,&quot;solidity&quot;:0.2}},&quot;type&quot;:&quot;barpolar&quot;}],&quot;pie&quot;:[{&quot;automargin&quot;:true,&quot;type&quot;:&quot;pie&quot;}]},&quot;layout&quot;:{&quot;autotypenumbers&quot;:&quot;strict&quot;,&quot;colorway&quot;:[&quot;#636efa&quot;,&quot;#EF553B&quot;,&quot;#00cc96&quot;,&quot;#ab63fa&quot;,&quot;#FFA15A&quot;,&quot;#19d3f3&quot;,&quot;#FF6692&quot;,&quot;#B6E880&quot;,&quot;#FF97FF&quot;,&quot;#FECB52&quot;],&quot;font&quot;:{&quot;color&quot;:&quot;#2a3f5f&quot;},&quot;hovermode&quot;:&quot;closest&quot;,&quot;hoverlabel&quot;:{&quot;align&quot;:&quot;left&quot;},&quot;paper_bgcolor&quot;:&quot;white&quot;,&quot;plot_bgcolor&quot;:&quot;#E5ECF6&quot;,&quot;polar&quot;:{&quot;bgcolor&quot;:&quot;#E5ECF6&quot;,&quot;angularaxis&quot;:{&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;ticks&quot;:&quot;&quot;},&quot;radialaxis&quot;:{&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;ticks&quot;:&quot;&quot;}},&quot;ternary&quot;:{&quot;bgcolor&quot;:&quot;#E5ECF6&quot;,&quot;aaxis&quot;:{&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;ticks&quot;:&quot;&quot;},&quot;baxis&quot;:{&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;ticks&quot;:&quot;&quot;},&quot;caxis&quot;:{&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;ticks&quot;:&quot;&quot;}},&quot;coloraxis&quot;:{&quot;colorbar&quot;:{&quot;outlinewidth&quot;:0,&quot;ticks&quot;:&quot;&quot;}},&quot;colorscale&quot;:{&quot;sequential&quot;:[[0.0,&quot;#0d0887&quot;],[0.1111111111111111,&quot;#46039f&quot;],[0.2222222222222222,&quot;#7201a8&quot;],[0.3333333333333333,&quot;#9c179e&quot;],[0.4444444444444444,&quot;#bd3786&quot;],[0.5555555555555556,&quot;#d8576b&quot;],[0.6666666666666666,&quot;#ed7953&quot;],[0.7777777777777778,&quot;#fb9f3a&quot;],[0.8888888888888888,&quot;#fdca26&quot;],[1.0,&quot;#f0f921&quot;]],&quot;sequentialminus&quot;:[[0.0,&quot;#0d0887&quot;],[0.1111111111111111,&quot;#46039f&quot;],[0.2222222222222222,&quot;#7201a8&quot;],[0.3333333333333333,&quot;#9c179e&quot;],[0.4444444444444444,&quot;#bd3786&quot;],[0.5555555555555556,&quot;#d8576b&quot;],[0.6666666666666666,&quot;#ed7953&quot;],[0.7777777777777778,&quot;#fb9f3a&quot;],[0.8888888888888888,&quot;#fdca26&quot;],[1.0,&quot;#f0f921&quot;]],&quot;diverging&quot;:[[0,&quot;#8e0152&quot;],[0.1,&quot;#c51b7d&quot;],[0.2,&quot;#de77ae&quot;],[0.3,&quot;#f1b6da&quot;],[0.4,&quot;#fde0ef&quot;],[0.5,&quot;#f7f7f7&quot;],[0.6,&quot;#e6f5d0&quot;],[0.7,&quot;#b8e186&quot;],[0.8,&quot;#7fbc41&quot;],[0.9,&quot;#4d9221&quot;],[1,&quot;#276419&quot;]]},&quot;xaxis&quot;:{&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;ticks&quot;:&quot;&quot;,&quot;title&quot;:{&quot;standoff&quot;:15},&quot;zerolinecolor&quot;:&quot;white&quot;,&quot;automargin&quot;:true,&quot;zerolinewidth&quot;:2},&quot;yaxis&quot;:{&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;ticks&quot;:&quot;&quot;,&quot;title&quot;:{&quot;standoff&quot;:15},&quot;zerolinecolor&quot;:&quot;white&quot;,&quot;automargin&quot;:true,&quot;zerolinewidth&quot;:2},&quot;scene&quot;:{&quot;xaxis&quot;:{&quot;backgroundcolor&quot;:&quot;#E5ECF6&quot;,&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;showbackground&quot;:true,&quot;ticks&quot;:&quot;&quot;,&quot;zerolinecolor&quot;:&quot;white&quot;,&quot;gridwidth&quot;:2},&quot;yaxis&quot;:{&quot;backgroundcolor&quot;:&quot;#E5ECF6&quot;,&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;showbackground&quot;:true,&quot;ticks&quot;:&quot;&quot;,&quot;zerolinecolor&quot;:&quot;white&quot;,&quot;gridwidth&quot;:2},&quot;zaxis&quot;:{&quot;backgroundcolor&quot;:&quot;#E5ECF6&quot;,&quot;gridcolor&quot;:&quot;white&quot;,&quot;linecolor&quot;:&quot;white&quot;,&quot;showbackground&quot;:true,&quot;ticks&quot;:&quot;&quot;,&quot;zerolinecolor&quot;:&quot;white&quot;,&quot;gridwidth&quot;:2}},&quot;shapedefaults&quot;:{&quot;line&quot;:{&quot;color&quot;:&quot;#2a3f5f&quot;}},&quot;annotationdefaults&quot;:{&quot;arrowcolor&quot;:&quot;#2a3f5f&quot;,&quot;arrowhead&quot;:0,&quot;arrowwidth&quot;:1},&quot;geo&quot;:{&quot;bgcolor&quot;:&quot;white&quot;,&quot;landcolor&quot;:&quot;#E5ECF6&quot;,&quot;subunitcolor&quot;:&quot;white&quot;,&quot;showland&quot;:true,&quot;showlakes&quot;:true,&quot;lakecolor&quot;:&quot;white&quot;},&quot;title&quot;:{&quot;x&quot;:0.05}}},&quot;title&quot;:{&quot;text&quot;:&quot;Live: pcm.moc.motor.temp&quot;},&quot;xaxis&quot;:{&quot;title&quot;:{&quot;text&quot;:&quot;Time (s)&quot;}},&quot;yaxis&quot;:{&quot;title&quot;:{&quot;text&quot;:&quot;Value&quot;}},&quot;height&quot;:400}}' data-config='{}'></marimo-plotly></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "azsi",
+      "code_hash": "87c7b43f33129373448ab54ec68cb5fb",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">Step by step:</span>\n<ul>\n<li>refresh \u2014 just referencing this variable (without using it for anything) is enough to make marimo treat this cell as \"depends on refresh,\" so it reruns every 0.1s.</li>\n<li>sensor_id = sensor_dropdown.value \u2014 reads whichever sensor id the user currently has selected in the dropdown.</li>\n<li>buf = get_buffers()[sensor_id] \u2014 pulls that sensor's deque of (timestamp, value) pairs out of the shared buffer.</li>\n<li>fig = go.Figure() \u2014 starts a blank Plotly figure.</li>\n<li>if buf: \u2014 only try to plot if there's actually data yet (avoids errors on the very first run, before any SSE messages have arrived).</li>\n<li>timestamps, values = zip(<em>buf) \u2014 buf is a list of tuples like [(ts1, v1), (ts2, v2), ...]; zip(</em>buf) \"unzips\" it into two separate lists: all the timestamps together, all the values together.</li>\n<li>t_sec = [t / 1_000_000 for t in timestamps] \u2014 converts timestamps from microseconds (as specified in the README) into seconds, so the x-axis reads in a human-friendly unit.</li>\n<li>fig.add_trace(go.Scatter(x=t_sec, y=values, mode=\"lines\")) \u2014 draws the actual line, plotting value over time.</li>\n<li>fig.update_layout(...) \u2014 sets the chart title (using the readable sensor name), axis labels, and height.</li>\n<li>mo.ui.plotly(fig) \u2014 the last line of a marimo cell is what gets displayed; this renders the Plotly figure as an interactive chart in the notebook.</li>\n</ul></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "f3a5a7124fcfb361272c9465cea93e12",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    }
+  ]
+}
