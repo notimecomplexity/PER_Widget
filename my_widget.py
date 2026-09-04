@@ -15,8 +15,9 @@ def _():
     import numpy as np # manipulates arrays
     import math # mathematical functions (e.g. floor)
     import time # for flashing red
+    import statistics # for calculating median
 
-    return defaultdict, deque, go, httpx, json, mo, np, threading, time
+    return defaultdict, deque, go, httpx, json, mo, np, statistics, threading
 
 
 @app.cell(hide_code=True)
@@ -124,7 +125,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(get_buffers, go, mo, np, refresh, time):
+def _(get_buffers, go, mo, np, refresh, statistics):
     refresh
 
     bufs = get_buffers()
@@ -132,76 +133,107 @@ def _(get_buffers, go, mo, np, refresh, time):
     def latest_vals(id_offset):
         vals = []
         oh = False
-        for n in range(8):
-            buf_l = bufs.get(id_offset + n)
-            buf_u = bufs.get(id_offset + 15 - n)
-            vals.append((buf_l[-1][1] + buf_u[-1][1]) / 2 if buf_l and buf_u else 0) # average temperature
-            if buf_l[-1][1] >= 80 or buf_u[-1][1] >= 80: # overheating check
-                oh = True
-        return vals, oh
+        for n in range(16):
+            buf = bufs.get(id_offset + n)
+            vals.append(buf[-1][1] if buf else 0) # average temperature
+        if vals and max(vals) >= 80: # overheating check
+            oh = True
+        return vals, oh, statistics.mean(vals), statistics.median(vals), max(vals), min(vals)
 
-    rear_left1, overheating = latest_vals(22)
+    rear_left, overheating, rl_mean, rl_median, rl_maximum, rl_minimum = latest_vals(22)
 
-    radial_values = rear_left1[::-1]
+    def interpolate_linear(values, num_points=320):
+        original_x = np.linspace(0, 15, len(values))   # original channel positions: 0-15
+        target_x = np.linspace(0, 15, num_points)        # many more points across the same range
+        interpolated = np.interp(target_x, original_x, values)
+        return target_x, interpolated
 
-    def interpolate_radial(values, num_rings=40):
-        original_radii = np.linspace(0, 1, len(values))
-        target_radii = np.linspace(0, 1, num_rings)
-        interpolated = np.interp(target_radii, original_radii, values)
-        return target_radii, interpolated
-
-    radii, smooth_radial_vals = interpolate_radial(radial_values, num_rings=40)
+    x_smooth, smooth_vals = interpolate_linear(rear_left, num_points=320)
 
     rltm = go.Figure()
 
-    ring_thickness = 1 / len(radii) * 1.02  # tiny overlap avoids gaps between rings
-
-    for i in range(len(radii)):
-        rltm.add_trace(go.Barpolar(
-            r=[ring_thickness],
-            base=[radii[i]],
-            theta=[180],
-            width=[360],
-            marker=dict(
-                color=[smooth_radial_vals[i]],
-
-                colorscale="Hot",
-                cmin=20,
-                cmax=115,
-                line=dict(width=0),
-                colorbar=dict(title="°C") if i == 0 else None,  # prevents lag
-            ),
-            showlegend=False,
-            hovertemplate=f"Temp: {smooth_radial_vals[i]:.1f}°C<extra></extra>"
-        ))
-
-    if overheating:
-        flash_on = int(time.time() * 2) % 2 == 0  # toggles every 0.5s
-        ring_color = "rgb(255,129,129)" if flash_on else "rgba(0,0,0,0)"
-
-        rltm.add_trace(go.Barpolar(
-            r=[0.1],
-            base=[1.025],
-            theta=[180],
-            width=[360],
-            marker=dict(color=ring_color, line=dict(width=0)),
-            showlegend=False,
-            hoverinfo="skip",
-        ))
+    rltm.add_trace(go.Heatmap(
+        z=[smooth_vals],
+        x=x_smooth,                     # 160 finely-spaced x positions
+        y=[""],
+        colorscale="Inferno",
+        zmin=20,
+        zmax=115,
+        colorbar=dict(
+            title=dict(text="°C", side="bottom", font=dict(family="Satoshi")),
+            orientation="h",
+            y=1,        # negative moves it below the plot area
+            len=0.6,        # width of the colorbar, as a fraction of the plot width
+            thickness=15,   # bar thickness in pixels
+            dtick=10,
+            tickfont=dict(family="Satoshi"),
+        ),
+        showscale=True,
+        hovertemplate="Temp: %{z:.1f}°C<extra></extra>",
+    ))
 
     rltm.update_layout(
-        title=dict(text="<b>Rear Left Tire Motor</b>", x=0.5, xanchor="center"),
-        polar=dict(
-            radialaxis=dict(showticklabels=False, range=[0, 1.125]),
-            angularaxis=dict(showticklabels=False),
+        font=dict(family="Satoshi"),
+        title=dict(
+            text="<b>Rear Left Tire Rotor</b>",
+            x=0.5,
         ),
-        height=400,
-        coloraxis=dict(colorscale="Hot", cmin=20, cmax=115, colorbar=dict(title="°C")),
-        hovermode="closest",
+        xaxis=dict(
+            title=dict(
+                text="Channel",   # ← change the text here
+                standoff=50,               # ← distance between axis line and title (repositioning)
+            ),
+            tickmode="array",
+            tickvals=list(range(16)),    # only show ticks at the original 16 channel positions
+            ticktext=[str(n) for n in range(16)],
+        ),
+        height=250,
     )
 
-    mo.ui.plotly(rltm)
-    return
+    if overheating:
+        # flash_on = int(time.time() * 2) % 2 == 0  # toggles every 0.5s
+        # ring_color = "rgb(255,129,129)" if flash_on else "rgba(0,0,0,0)"
+
+        # rltm.add_trace(go.Barpolar(
+        #     r=[0.1],
+        #     base=[1.025],
+        #     theta=[180],
+        #     width=[360],
+        #     marker=dict(color=ring_color, line=dict(width=0)),
+        #     showlegend=False,
+        #     hoverinfo="skip",
+        # ))
+        print("Overheating!")
+
+    def make_card(title, value, unit="°C"):
+        if title=="Maximum" and overheating:
+            color = "#ff8181"
+        else:
+            color = "#777777"
+        return mo.Html(f"""
+        <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,700&display=swap" rel="stylesheet">
+        <div style="border: 1px solid #ddd; border-radius: 12px; overflow: hidden; font-family: 'Satoshi'; min-width: 180px; text-align: center;">
+            <div style="background-color: {color}; color: white; padding: 10px 14px; font-size: 25px; font-weight: bold;">
+                {title}
+            </div>
+            <div style="padding: 14px; text-align: center; font-size: 20px; font-weight: bold;">
+                {value}{unit}
+            </div>
+        </div>
+        """)
+
+    print(rear_left.index(rl_maximum))
+
+    mo.vstack([
+        mo.ui.plotly(rltm),
+        mo.hstack([
+            make_card("Mean", round(rl_mean, 1)),
+            make_card("Median", round(rl_median, 1)),
+            make_card("Maximum", round(rl_maximum, 1)),
+            make_card("Minimum", round(rl_minimum, 1)),
+        ], gap=1, justify="center")
+    ])
+    return (overheating,)
 
 
 @app.cell(hide_code=True)
@@ -308,6 +340,38 @@ def _():
     # # print(alert)
 
     # mo.ui.plotly(fig)
+    return
+
+
+@app.cell
+def _(mo, overheating, refresh):
+    refresh
+
+    if overheating:
+        alert = mo.Html("""
+        <style>
+        @keyframes flash {
+            0%, 100% { background-color: #990000; }
+            50% { background-color: #ffcccc; }
+        }
+        .flash-box {
+            animation: flash 1s infinite;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        </style>
+        <div class="flash-box">
+            ⚠️ OVERHEATING WARNING<br>PLEASE LOWER LOAD
+        </div>
+        """)
+    else:
+        alert = mo.md("")
+
+    alert
     return
 
 
