@@ -120,12 +120,23 @@ def _(mo):
     # refreshes every second
 
     refresh = mo.ui.refresh(default_interval="0.1s")
-    refresh
+
+    mo.Html(f"<div style='display: none;'>{refresh}</div>") # hides refresh widget
     return (refresh,)
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    # Penn Electric Racing logo
+
+    mo.image(src="https://kevinjchen.me/assets/images/per/logo.png", height=190).center()
+    return
+
+
+@app.cell(hide_code=True)
 def _(get_buffers, go, mo, np, refresh, statistics):
+    # 2D Heatmap of Rear Left Tire Rotor
+
     refresh
 
     bufs = get_buffers()
@@ -190,171 +201,84 @@ def _(get_buffers, go, mo, np, refresh, statistics):
         height=250,
     )
 
-    if overheating:
-        # flash_on = int(time.time() * 2) % 2 == 0  # toggles every 0.5s
-        # ring_color = "rgb(255,129,129)" if flash_on else "rgba(0,0,0,0)"
+    mo.vstack([
+        mo.ui.plotly(rltm),
+        mo.center(mo.md("""
+        <div style="font-family: 'Satoshi', sans-serif; font-style: italic;">
+        <span style="color: rgb(255, 65, 1); font-weight: bold;">Overheating</span> occurs when any one sensor reports a temperature reading of 80 °C or above.
+        </div>
+        """))
+    ])
+    return overheating, rear_left, rl_maximum, rl_mean, rl_median, rl_minimum
 
-        # rltm.add_trace(go.Barpolar(
-        #     r=[0.1],
-        #     base=[1.025],
-        #     theta=[180],
-        #     width=[360],
-        #     marker=dict(color=ring_color, line=dict(width=0)),
-        #     showlegend=False,
-        #     hoverinfo="skip",
-        # ))
-        print("Overheating!")
+
+@app.cell(hide_code=True)
+def _(mo, overheating, refresh, rl_maximum, rl_mean, rl_median, rl_minimum):
+    # 2D Heatmap Statistics
+
+    refresh
 
     def make_card(title, value, unit="°C"):
-        if title=="Maximum" and overheating:
-            color = "#ff8181"
+        if title == "Maximum" and overheating:
+            color = "rgb(255, 65, 1)"
         else:
-            color = "#777777"
+            color = "rgb(255, 255, 255)"
         return mo.Html(f"""
         <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,700&display=swap" rel="stylesheet">
-        <div style="border: 1px solid #ddd; border-radius: 12px; overflow: hidden; font-family: 'Satoshi'; min-width: 180px; text-align: center;">
-            <div style="background-color: {color}; color: white; padding: 10px 14px; font-size: 25px; font-weight: bold;">
+        <div style="
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            overflow: hidden;
+            font-family: 'Satoshi';
+            width: 180px;
+            height: 180px;
+            text-align: center;
+            background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.2)), url('https://pics.clipartpng.com/Tire_PNG_Clip_Art-2927.png');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            -webkit-text-stroke: 0.5px black;
+            color: {color};
+        ">
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 6px;">
                 {title}
             </div>
-            <div style="padding: 14px; text-align: center; font-size: 20px; font-weight: bold;">
+            <div style="font-size: 20px; font-weight: bold;">
                 {value}{unit}
             </div>
         </div>
         """)
 
-    print(rear_left.index(rl_maximum))
-
-    mo.vstack([
-        mo.ui.plotly(rltm),
-        mo.hstack([
-            make_card("Mean", round(rl_mean, 1)),
-            make_card("Median", round(rl_median, 1)),
-            make_card("Maximum", round(rl_maximum, 1)),
-            make_card("Minimum", round(rl_minimum, 1)),
-        ], gap=1, justify="center")
-    ])
-    return (overheating,)
-
-
-@app.cell(hide_code=True)
-def _():
-    # refresh
-
-    # buffers = get_buffers()
-    # def latest_values(id_offset):
-    #     vals = []
-    #     for n in range(16):
-    #         buf = buffers.get(id_offset + n)
-    #         vals.append(buf[-1][1] if buf else 0)
-    #     return vals
-
-    # rear_left = latest_values(22)
-    # rear_right = latest_values(38)
-    # cmin, cmax = min(rear_left + rear_right), max(rear_left + rear_right)
-
-    # def interpolate_circular(values, num_points=720):
-    #     # Repeat the first value at the end so interpolation wraps around smoothly
-    #     values_wrapped = values + [values[0]]
-    #     original_angles = np.linspace(0, 360, len(values_wrapped))
-    #     target_angles = np.linspace(0, 360, num_points, endpoint=False)
-    #     interpolated = np.interp(target_angles, original_angles, values_wrapped)
-    #     return target_angles, interpolated
-
-    # angles, smooth_vals = interpolate_circular(rear_left, num_points=720)
-
-    # # Compute which original channel each interpolated angle corresponds to
-    # channel_indices = [int(a / 22.5) % 16 for a in angles]
-
-    # # Bundle both temp and channel into customdata (needs to be a 2D array: one row per point)
-    # custom = np.stack([smooth_vals, channel_indices], axis=-1)
-
-    # fig = go.Figure()
-    # fig.add_trace(go.Barpolar(
-    #     r=[1] * len(angles),
-    #     theta=angles,
-    #     width=[360 / len(angles)] * len(angles),
-    #     marker=dict(
-    #         color=smooth_vals,
-    #         colorscale="Hot",
-    #         cmin=0,
-    #         cmax=115,
-    #         colorbar=dict(title="°C"),
-    #         line=dict(width=0),  # removes the thin borders between slices, helps the blend look continuous
-    #     ),
-    #     customdata=custom,  # makes the actual temp value available to the template
-    #     hovertemplate="Channel: %{customdata[1]}<br>Temp: %{customdata[0]:.1f}°C<extra></extra>",
-    #     showlegend=False
-    # ))
-
-    # # Outer overheating ring — red where over threshold, invisible elsewhere
-    # overheat_colors = [
-    #     "rgb(255,129,129)" if rear_left[ch] >= 100 else "rgba(0,0,0,0)"
-    #     for ch in channel_indices
-    # ]
-
-    # fig.add_trace(go.Barpolar(
-    #     r=[0.15] * len(angles),   # ring thickness, sitting outside r=1
-    #     base=[1] * len(angles),   # starts the bar at r=1 instead of r=0
-    #     theta=angles,
-    #     width=[360 / len(angles) * 1.02] * len(angles),
-    #     marker=dict(color=overheat_colors, line=dict(width=0)),
-    #     showlegend=False,
-    #     hoverinfo="skip",
-    # ))
-
-    # fig.update_layout(
-    #     title=dict(
-    #         text="<b>Rear Left Tire</b>",
-    #         x=0.5,                          # centers horizontally (0 = left, 1 = right)
-    #         xanchor="center",                 # anchors the text's center point at x, not its left edge
-    #         font=dict(family="Times New Roman", size=20),
-    #     ),
-    #     polar=dict(
-    #         radialaxis=dict(showticklabels=False, range=[0, 1.15]),
-    #         angularaxis=dict(rotation=90, direction="clockwise", showticklabels=False),
-    #     ),
-    #     height=400,
-    # )
-
-    # # --- Live overheating alert ---
-    # overheating = []
-    # tire_ids = list(range(22, 54))
-    # for sid in tire_ids:
-    #     buf = buffers.get(sid)
-    #     if buf:
-    #         latest_ts, latest_val = buf[-1]
-    #         if latest_val >= 100:
-    #             side = "Rear Left" if sid < 38 else "Rear Right"
-    #             channel = sid - 22 if sid < 38 else sid - 38
-    #             overheating.append((side, channel, latest_val))
-
-    # if overheating:
-    #     lines = "\n".join(
-    #         f"- 🔴 **{side} [{channel}]**: {val:.1f}°C" for side, channel, val in overheating
-    #     )
-    #     alert = f"### ⚠️ Overheating Alert\n{lines}"
-    # else:
-    #     alert = "✅ All tire channels within normal range"
-
-    # # # uncomment to show specific channel/s overheating
-    # # print(alert)
-
-    # mo.ui.plotly(fig)
+    mo.hstack([
+        make_card("Mean", round(rl_mean, 1)),
+        make_card("Median", round(rl_median, 1)),
+        make_card("Maximum", round(rl_maximum, 1)),
+        make_card("Minimum", round(rl_minimum, 1)),
+    ], gap=2.5, justify="center")
     return
 
 
 @app.cell
-def _(mo, overheating, refresh):
+def _(mo, overheating, rear_left, refresh):
+    # Overheating Warning
+
     refresh
 
+    oh_num = len([rear_left.index(hot) for hot in rear_left if hot >= 80])
+
     if overheating:
-        alert = mo.Html("""
+        alert = mo.Html(f"""
         <style>
-        @keyframes flash {
-            0%, 100% { background-color: #990000; }
-            50% { background-color: #ffcccc; }
-        }
-        .flash-box {
+        @keyframes flash {{
+            0%, 100% {{ background-color: #990000; }}
+            50% {{ background-color: #ffcccc; }}
+        }}
+        .flash-box {{
             animation: flash 1s infinite;
             color: white;
             font-weight: bold;
@@ -362,10 +286,13 @@ def _(mo, overheating, refresh):
             text-align: center;
             padding: 16px;
             border-radius: 8px;
-        }
+            width: 925px;
+            margin: 0 auto;
+            font-family: 'Satoshi';
+        }}
         </style>
         <div class="flash-box">
-            ⚠️ OVERHEATING WARNING<br>PLEASE LOWER LOAD
+            ⚠️ WARNING: {oh_num} CHANNEL{"S" if oh_num > 1 else ""} OVERHEATING ⚠️<br>PLEASE REDUCE LOAD
         </div>
         """)
     else:
